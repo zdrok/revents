@@ -19,6 +19,7 @@ export default function NavBar({ setFormOpen }) {
           <img src='/assets/logo.png' alt='logo' style={{ marginRight: 15 }} />
         </Menu.Item>
         <Menu.Item name='Event' as={NavLink} to='/events' />
+        <Menu.Item name='Sandbox' as={NavLink} to='/sandbox' />
         {authenticated && (
           <Menu.Item as={NavLink} to='/createEvent'>
             <Button inverted positive content='Create Event' />
