@@ -1,9 +1,16 @@
 import cuid from "cuid";
+import { Formik, Form } from "formik";
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { Button, Form, Header, Segment } from "semantic-ui-react";
+import { Button, Header, Segment } from "semantic-ui-react";
 import { createEvent, updateEvent } from "../eventActions";
+import * as Yup from "yup";
+import MyTextInput from "../../../app/common/form/MyTextInput";
+import MyTextArea from "../../../app/common/form/MyTextArea";
+import MySelectinput from "../../../app/common/form/MySelectinput";
+import { categoryData } from "../../../app/api/categoryOptions";
+import MyDateInput from "../../../app/common/form/MyDateInput";
 
 export default function EventForm({ match, history }) {
   const dispatch = useDispatch();
@@ -18,97 +25,80 @@ export default function EventForm({ match, history }) {
     venue: "",
     date: "",
   };
-  const [values, setValues] = useState(initialValues);
 
-  function handleFormSubmit() {
-    selectedEvent
-      ? dispatch(updateEvent({ ...selectedEvent, ...values }))
-      : dispatch(
-          createEvent({
-            ...values,
-            id: cuid(),
-            hostedBy: "Bob",
-            attendees: [],
-            //   hostPhotoURL: "https://randomuser.me/api/portraits/men/20.jpg",
-            hostPhotoURL: "./assets/user.png",
-            //   /home/ma/udemy/revents/public/assets/user.png
-          })
-        );
-          history.push('/events')
-  }
+  const validationSchema = Yup.object({
+    title: Yup.string().required("You must provie a title"),
+    category: Yup.string().required("You must provie a category"),
+    description: Yup.string().required(),
+    city: Yup.string().required(),
+    venue: Yup.string().required(),
+    date: Yup.string().required(),
+  });
 
-  function handleInputChange(e) {
-    const { name, value } = e.target;
-    setValues({ ...values, [name]: value });
-  }
+  // function handleFormSubmit() {}
 
   return (
     <Segment clearing>
-      <Header content={selectedEvent ? "Edit the event" : "Create new event"} />
-      <Form onSubmit={handleFormSubmit}>
-        <Form.Field>
-          <input
-            type='text'
-            placeholder='Event title'
-            name='title'
-            value={values.title}
-            onChange={(e) => handleInputChange(e)}
-          />
-        </Form.Field>
-        <Form.Field>
-          <input
-            type='text'
-            placeholder='Category'
-            name='category'
-            value={values.category}
-            onChange={(e) => handleInputChange(e)}
-          />
-        </Form.Field>
-        <Form.Field>
-          <input
-            type='text'
-            placeholder='Description'
-            name='description'
-            value={values.description}
-            onChange={(e) => handleInputChange(e)}
-          />
-        </Form.Field>
-        <Form.Field>
-          <input
-            type='text'
-            placeholder='City'
-            name='city'
-            value={values.city}
-            onChange={(e) => handleInputChange(e)}
-          />
-        </Form.Field>
-        <Form.Field>
-          <input
-            type='text'
-            placeholder='Venue'
-            name='venue'
-            value={values.venue}
-            onChange={(e) => handleInputChange(e)}
-          />
-        </Form.Field>
-        <Form.Field>
-          <input
-            type='date'
-            placeholder='Date'
-            name='date'
-            value={values.date}
-            onChange={(e) => handleInputChange(e)}
-          />
-        </Form.Field>
-        <Button type='submit' positive content='Submit' floated='right' />
-        <Button
-          type='submit'
-          content='Cancel'
-          floated='right'
-          as={Link}
-          to='/events'
-        />
-      </Form>
+      <Formik
+        initialValues={initialValues}
+        validationSchema={validationSchema}
+        onSubmit={(values) => {
+          selectedEvent
+            ? dispatch(updateEvent({ ...selectedEvent, ...values }))
+            : dispatch(
+                createEvent({
+                  ...values,
+                  id: cuid(),
+                  hostedBy: "Bob",
+                  attendees: [],
+                  //   hostPhotoURL: "https://randomuser.me/api/portraits/men/20.jpg",
+                  hostPhotoURL: "./assets/user.png",
+                  //   /home/ma/udemy/revents/public/assets/user.png
+                })
+              );
+          history.push("/events");
+        }}
+      >
+        {({isSubmitting, dirty, isValid}) => (
+          <Form className='ui form'>
+            <Header sub content='Event Details' color='teal' />
+            <MyTextInput name='title' placeholder='Event title' />
+            <MySelectinput
+              name='category'
+              placeholder='Event category'
+              options={categoryData}
+            />
+            <MyTextArea name='description' placeholder='Description' rows={3} />
+            <Header sub content='Event Location Details' color='teal' />
+            <MyTextInput name='city' placeholder='City' />
+            <MyTextInput name='venue' placeholder='Venue' />
+            <MyDateInput
+              name='date'
+              placeholderText='Event Date'
+              timeFormat='HH:mm'
+              showTimeSelect
+              timeCaption='time'
+              dateFormat='MMMM d, yyyy h:mm a'
+            />
+            <Button
+              loading={isSubmitting}
+              disabled={!isValid || !dirty || isSubmitting}
+              type='submit'
+              positive
+              content='Submit'
+              floated='right'
+            />
+            <Button
+              disabled={isSubmitting}
+              type='submit'
+              content='Cancel'
+              floated='right'
+              as={Link}
+              to='/events'
+            />
+          </Form>
+        )}
+      </Formik>
     </Segment>
   );
 }
