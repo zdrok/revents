@@ -4,7 +4,11 @@ import {
   FETCH_EVENTS,
   UPDATE_EVENT,
 } from "./eventConstants";
-import { asyncActionError, asyncActionFinish, asyncActionStart } from "../../app/async/asyncReducer";
+import {
+  asyncActionError,
+  asyncActionFinish,
+  asyncActionStart,
+} from "../../app/async/asyncReducer";
 import { fetchSampleData } from "../../app/api/mockApi";
 
 export function loadEvents() {
@@ -16,10 +20,17 @@ export function loadEvents() {
         type: FETCH_EVENTS,
         payload: events,
       });
-      dispatch(asyncActionFinish())
+      dispatch(asyncActionFinish());
     } catch (error) {
-      dispatch(asyncActionError)
+      dispatch(asyncActionError);
     }
+  };
+}
+
+export function listenToEvents(events) {
+  return {
+    type: FETCH_EVENTS,
+    payload: events,
   };
 }
 
