@@ -2,14 +2,15 @@ import {
   CREATE_EVENT,
   DELETE_EVENT,
   FETCH_EVENTS,
+  LISTEN_TO_EVENT_CHAT,
   UPDATE_EVENT,
-} from "./eventConstants";
+} from './eventConstants';
 import {
   asyncActionError,
   asyncActionFinish,
   asyncActionStart,
-} from "../../app/async/asyncReducer";
-import { fetchSampleData } from "../../app/api/mockApi";
+} from '../../app/async/asyncReducer';
+import { fetchSampleData } from '../../app/api/mockApi';
 
 export function loadEvents() {
   return async function (dispatch) {
@@ -50,5 +51,12 @@ export function deleteEvent(eventId) {
   return {
     type: DELETE_EVENT,
     payload: eventId,
+  };
+}
+
+export function listenToEventChat(comments) {
+  return {
+    type: LISTEN_TO_EVENT_CHAT,
+    payload: comments,
   };
 }
