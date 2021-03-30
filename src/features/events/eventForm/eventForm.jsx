@@ -1,26 +1,26 @@
 /* global google */
-import { Formik, Form } from 'formik';
-import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link, Redirect } from 'react-router-dom';
-import { Button, Confirm, Header, Segment } from 'semantic-ui-react';
-import { listenToEvents } from '../eventActions';
-import * as Yup from 'yup';
-import { toast } from 'react-toastify';
-import MyTextInput from '../../../app/common/form/MyTextInput';
-import MyTextArea from '../../../app/common/form/MyTextArea';
-import MySelectinput from '../../../app/common/form/MySelectinput';
-import { categoryData } from '../../../app/api/categoryOptions';
-import MyDateInput from '../../../app/common/form/MyDateInput';
-import MyPlaceInput from '../../../app/common/form/MyPlaceInput';
-import useFirestoreDoc from '../../../app/hooks/useFirestoreDoc';
+import { Formik, Form } from "formik";
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, Redirect } from "react-router-dom";
+import { Button, Confirm, Header, Segment } from "semantic-ui-react";
+import { listenToEvents, listenToSelectedEvent } from "../eventActions";
+import * as Yup from "yup";
+import { toast } from "react-toastify";
+import MyTextInput from "../../../app/common/form/MyTextInput";
+import MyTextArea from "../../../app/common/form/MyTextArea";
+import MySelectinput from "../../../app/common/form/MySelectinput";
+import { categoryData } from "../../../app/api/categoryOptions";
+import MyDateInput from "../../../app/common/form/MyDateInput";
+import MyPlaceInput from "../../../app/common/form/MyPlaceInput";
+import useFirestoreDoc from "../../../app/hooks/useFirestoreDoc";
 import {
   addEventToFirestore,
   cancelEventToggle,
   listenToEventFromFirestore,
   updateEventInFirestore,
-} from '../../../app/firestore/firestoreService';
-import LoadingComponent from '../../../app/layout/LoadingComponent';
+} from "../../../app/firestore/firestoreService";
+import LoadingComponent from "../../../app/layout/LoadingComponent";
 
 export default function EventForm({ match, history }) {
   const [loadingCancel, setLoadingCancel] = useState(false);
@@ -28,33 +28,31 @@ export default function EventForm({ match, history }) {
 
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.async);
-  const selectedEvent = useSelector((state) =>
-    state.event.events.find((e) => e.id === match.params.id)
-  );
+  const { selectedEvent } = useSelector((state) => state.event);
   const initialValues = selectedEvent ?? {
-    title: '',
-    category: '',
-    description: '',
+    title: "",
+    category: "",
+    description: "",
     city: {
-      address: '',
+      address: "",
       latLng: null,
     },
     venue: {
-      address: '',
+      address: "",
       latLng: null,
     },
-    date: '',
+    date: "",
   };
 
   const validationSchema = Yup.object({
-    title: Yup.string().required('You must provie a title'),
-    category: Yup.string().required('You must provie a category'),
+    title: Yup.string().required("You must provie a title"),
+    category: Yup.string().required("You must provie a category"),
     description: Yup.string().required(),
     city: Yup.object().shape({
-      address: Yup.string().required('City is required'),
+      address: Yup.string().required("City is required"),
     }),
     venue: Yup.object().shape({
-      address: Yup.string().required('Venue is required'),
+      address: Yup.string().required("Venue is required"),
     }),
     date: Yup.string().required(),
   });
@@ -76,7 +74,7 @@ export default function EventForm({ match, history }) {
   useFirestoreDoc({
     shouldExecute: !!match.params.id,
     query: () => listenToEventFromFirestore(match.params.id),
-    data: (event) => dispatch(listenToEvents([event])),
+    data: (event) => dispatch(listenToSelectedEvent([event])),
     deps: [match.params.id, dispatch],
   });
   if (loading) return <LoadingComponent content='Loading event' />;
@@ -93,7 +91,7 @@ export default function EventForm({ match, history }) {
               ? await updateEventInFirestore(values)
               : await addEventToFirestore(values);
             setSubmitting(false);
-            history.push('/events');
+            history.push("/events");
           } catch (error) {
             toast.error(error.message);
             setSubmitting(false);
@@ -115,7 +113,7 @@ export default function EventForm({ match, history }) {
               options={{
                 location: new google.maps.LatLng(values.city.latLng),
                 radius: 1000,
-                types: ['establishment'],
+                types: ["establishment"],
               }}
             />
             <MyDateInput
@@ -131,8 +129,8 @@ export default function EventForm({ match, history }) {
                 loading={loadingCancel}
                 type='button'
                 floated='left'
-                color={selectedEvent.isCancelled ? 'green' : 'red'}
-                content={selectedEvent.isCancelled ? 'Reactivate Event' : 'Cancel Event'}
+                color={selectedEvent.isCancelled ? "green" : "red"}
+                content={selectedEvent.isCancelled ? "Reactivate Event" : "Cancel Event"}
                 onClick={() => setConfirmOpen(true)}
               />
             )}
@@ -158,8 +156,8 @@ export default function EventForm({ match, history }) {
       <Confirm
         content={
           selectedEvent?.isCancelled
-            ? 'This will reactivate event - are you sure?'
-            : 'This will cancel event - are you sure?'
+            ? "This will reactivate event - are you sure?"
+            : "This will cancel event - are you sure?"
         }
         open={confirmOpen}
         onCancel={() => setConfirmOpen(false)}

@@ -1,5 +1,5 @@
-import cuid from 'cuid';
-import firebase from '../config/firebase';
+import cuid from "cuid";
+import firebase from "../config/firebase";
 
 const db = firebase.firestore();
 
@@ -22,30 +22,30 @@ export function dataFromSnapshot(snapshot) {
 //   return db.collection("events").onSnapshot(observer);
 // }
 
-export function listenToEventsFromFirestore(predicate) {
+export function fetchEventsFromFirestore(predicate, limit, lastDocSnapshot = null) {
   const user = firebase.auth().currentUser;
-  let eventsRef = db.collection('events').orderBy('date');
-  switch (predicate.get('filter')) {
-    case 'isGoing':
+  let eventsRef = db.collection("events").orderBy("date").startAfter(lastDocSnapshot).limit(limit);
+  switch (predicate.get("filter")) {
+    case "isGoing":
       return eventsRef
-        .where('attendeeIds', 'array-contains', user.uid)
-        .where('date', '>=', predicate.get('startDate'));
-    case 'isHost':
+        .where("attendeeIds", "array-contains", user.uid)
+        .where("date", ">=", predicate.get("startDate"));
+    case "isHost":
       return eventsRef
-        .where('hostUid', '==', user.uid)
-        .where('date', '>=', predicate.get('startDate'));
+        .where("hostUid", "==", user.uid)
+        .where("date", ">=", predicate.get("startDate"));
     default:
-      return eventsRef.where('date', '>=', predicate.get('startDate'));
+      return eventsRef.where("date", ">=", predicate.get("startDate"));
   }
 }
 
 export function listenToEventFromFirestore(eventId) {
-  return db.collection('events').doc(eventId);
+  return db.collection("events").doc(eventId);
 }
 
 export function addEventToFirestore(event) {
   const user = firebase.auth().currentUser;
-  return db.collection('events').add({
+  return db.collection("events").add({
     ...event,
     hostUid: user.uid,
     hostedBy: user.displayName,
@@ -60,22 +60,22 @@ export function addEventToFirestore(event) {
 }
 
 export function updateEventInFirestore(event) {
-  return db.collection('events').doc(event.id).update(event);
+  return db.collection("events").doc(event.id).update(event);
 }
 
 export function deleteEventInFirestore(eventId) {
-  return db.collection('events').doc(eventId).delete();
+  return db.collection("events").doc(eventId).delete();
 }
 
 export function cancelEventToggle(event) {
-  return db.collection('events').doc(event.id).update({
+  return db.collection("events").doc(event.id).update({
     isCancelled: !event.isCancelled,
   });
 }
 
 export function setUserProfileData(user) {
   return db
-    .collection('users')
+    .collection("users")
     .doc(user.uid)
     .set({
       displayName: user.displayName,
@@ -86,7 +86,7 @@ export function setUserProfileData(user) {
 }
 
 export function getUserProfile(userId) {
-  return db.collection('users').doc(userId);
+  return db.collection("users").doc(userId);
 }
 
 export async function updateUserProfile(profile) {
@@ -97,7 +97,7 @@ export async function updateUserProfile(profile) {
         displayName: profile.displayName,
       });
     }
-    return await db.collection('users').doc(user.uid).update(profile);
+    return await db.collection("users").doc(user.uid).update(profile);
   } catch (error) {
     throw error;
   }
@@ -105,11 +105,11 @@ export async function updateUserProfile(profile) {
 
 export async function updateUserProfilePhoto(downloadURL, filename) {
   const user = firebase.auth().currentUser;
-  const userDocRef = db.collection('users').doc(user.uid);
+  const userDocRef = db.collection("users").doc(user.uid);
   try {
     const userDoc = await userDocRef.get();
     if (!userDoc.data().photoURL) {
-      await db.collection('users').doc(user.uid).update({
+      await db.collection("users").doc(user.uid).update({
         photoURL: downloadURL,
       });
 
@@ -117,7 +117,7 @@ export async function updateUserProfilePhoto(downloadURL, filename) {
         photoURL: downloadURL,
       });
     }
-    return await db.collection('users').doc(user.uid).collection('photos').add({
+    return await db.collection("users").doc(user.uid).collection("photos").add({
       name: filename,
       url: downloadURL,
     });
@@ -127,16 +127,57 @@ export async function updateUserProfilePhoto(downloadURL, filename) {
 }
 
 export function getUserPhotos(userUid) {
-  return db.collection('users').doc(userUid).collection('photos');
+  return db.collection("users").doc(userUid).collection("photos");
 }
 
 export async function setMainPhoto(photo) {
   const user = firebase.auth().currentUser;
+  const today = new Date();
+  const eventDocQuery = db
+    .collection("events")
+    .where("attendeeIds", "array-contains", user.uid)
+    .where("date", ">=", "today");
+  const userFollowingRef = db.collection("following").doc(user.uid).collection("userFollowing");
+
+  const batch = db.batch();
+  batch.update(db.collection("users").doc(user.uid), {
+    photoURL: photo.url,
+  });
+
   try {
-    await db.collection('users').doc(user.uid).update({
-      photoURL: photo.url,
+    const eventQuerySnap = await eventDocQuery.get();
+    for (let i = 0; i < eventQuerySnap.docs.length; i++) {
+      let eventDoc = eventQuerySnap.docs[i];
+      if (eventDoc.data().hostUid === user.uid) {
+        batch.update(eventQuerySnap.docs[i].ref, {
+          hostPhotoURL: photo.url,
+        });
+
+        batch.update(eventQuerySnap.docs[i].ref, {
+          attendees: eventDoc.data().attendees.filter((attendee) => {
+            if (attendee.id === user.uid) {
+              attendee.photoURL = photo.url;
+            }
+            return attendee;
+          }),
+        });
+      }
+    }
+
+    const userFollowingSnap = await userFollowingRef.get();
+    userFollowingSnap.docs.forEach((docRef) => {
+      let followingDocRef = db
+        .collection("following")
+        .doc(docRef.id)
+        .collection("userFollowers")
+        .doc(user.uid);
+
+      batch.update(followingDocRef, {
+        photoURL: photo.url,
+      });
     });
-    await user.updateProfile({
+    await batch.commit();
+    return await user.updateProfile({
       photoURL: photo.url,
     });
   } catch (error) {
@@ -146,13 +187,13 @@ export async function setMainPhoto(photo) {
 
 export function deletePhotoFromCollection(photoId) {
   const userId = firebase.auth().currentUser.uid;
-  return db.collection('users').doc(userId).collection('photos').doc(photoId).delete();
+  return db.collection("users").doc(userId).collection("photos").doc(photoId).delete();
 }
 
 export function addUserAttendance(event) {
   const user = firebase.auth().currentUser;
   return db
-    .collection('events')
+    .collection("events")
     .doc(event.id)
     .update({
       attendees: firebase.firestore.FieldValue.arrayUnion({
@@ -167,9 +208,9 @@ export function addUserAttendance(event) {
 export async function cancelUserAttendance(event) {
   const user = firebase.auth().currentUser;
   try {
-    const eventDoc = await db.collection('events').doc(event.id).get();
+    const eventDoc = await db.collection("events").doc(event.id).get();
     return db
-      .collection('events')
+      .collection("events")
       .doc(event.id)
       .update({
         attendeeIds: firebase.firestore.FieldValue.arrayRemove(user.uid),
@@ -181,22 +222,22 @@ export async function cancelUserAttendance(event) {
 }
 
 export function getUsersEventQuerry(activeTab, userUid) {
-  let eventsRef = db.collection('events');
+  let eventsRef = db.collection("events");
   const today = new Date();
   switch (activeTab) {
     case 1:
       return eventsRef
-        .where('attendeeIds', 'array-contains', userUid)
-        .where('date', '>=', today)
-        .orderBy('date', 'desc');
+        .where("attendeeIds", "array-contains", userUid)
+        .where("date", ">=", today)
+        .orderBy("date", "desc");
 
     case 2: // hosting
-      return eventsRef.where('hostUid', '==', userUid).orderBy('date');
+      return eventsRef.where("hostUid", "==", userUid).orderBy("date");
     default:
       return eventsRef
-        .where('attendeeIds', 'array-contains', userUid)
-        .where('date', '<=', today)
-        .orderBy('date');
+        .where("attendeeIds", "array-contains", userUid)
+        .where("date", "<=", today)
+        .orderBy("date");
   }
 }
 
@@ -206,7 +247,7 @@ export async function followUser(profile) {
 
   try {
     batch.set(
-      db.collection('following').doc(user.uid).collection('userFollowing').doc(profile.id),
+      db.collection("following").doc(user.uid).collection("userFollowing").doc(profile.id),
       {
         displayName: profile.displayName,
         photoURL: profile.photoURL,
@@ -222,7 +263,7 @@ export async function followUser(profile) {
     //   }
     // );
 
-    batch.update(db.collection('users').doc(user.uid), {
+    batch.update(db.collection("users").doc(user.uid), {
       followingCount: firebase.firestore.FieldValue.increment(1),
     });
 
@@ -240,14 +281,14 @@ export async function unfollowUser(profile) {
   const batch = db.batch();
   try {
     batch.delete(
-      db.collection('following').doc(user.uid).collection('userFollowing').doc(profile.id)
+      db.collection("following").doc(user.uid).collection("userFollowing").doc(profile.id)
     );
 
     // batch.delete(
     //   db.collection('following').doc(profile.id).collection('userFollowers').doc(user.uid)
     // );
 
-    batch.update(db.collection('users').doc(user.uid), {
+    batch.update(db.collection("users").doc(user.uid), {
       followingCount: firebase.firestore.FieldValue.increment(-1),
     });
 
@@ -261,14 +302,14 @@ export async function unfollowUser(profile) {
 }
 
 export function getFollowersCollection(profileId) {
-  return db.collection('following').doc(profileId).collection('userFollowers');
+  return db.collection("following").doc(profileId).collection("userFollowers");
 }
 
 export function getFollowingCollection(profileId) {
-  return db.collection('following').doc(profileId).collection('userFollowing');
+  return db.collection("following").doc(profileId).collection("userFollowing");
 }
 
 export function getFollowingDoc(profileId) {
   const userUid = firebase.auth().currentUser.uid;
-  return db.collection('following').doc(userUid).collection('userFollowing').doc(profileId).get();
+  return db.collection("following").doc(userUid).collection("userFollowing").doc(profileId).get();
 }
